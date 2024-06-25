@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système Solaire en Three.js</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+        }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #info button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div id="info">
+    <h2 id="planet-name">Planète</h2>
+    <p id="planet-description">Description</p>
+    <button id="close-info">Fermer</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.5/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.5/examples/js/controls/OrbitControls.js"></script>
+<script>
+    // Initialisation de la scène, de la caméra et du renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Ajout des contrôles d'orbite pour la navigation
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // activation de l'amortissement (inertie)
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false; // défilement dans l'espace de l'écran
+    controls.minDistance = 10; // distance de zoom minimale
+    controls.maxDistance = 55500; // distance de zoom maximale
+
+    // Raycaster pour détecter les clics sur les objets
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let selectedPlanet = null;
+
+    // Création du soleil
+    const sunGeometry = new THREE.SphereGeometry(20, 32, 32); // Taille du soleil
+    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    scene.add(sun);
+
+    // Ajout d'une lumière ponctuelle pour simuler la lumière du Soleil
+    const pointLight = new THREE.PointLight(0xffffff, 2, 3000);
+    pointLight.position.set(0, 0, 0);
+    scene.add(pointLight);
+
+
+    // Données des planètes (rayon en km et distance moyenne au Soleil en km)
+    const planetData = [
+        { name: "Mercure", color: 0x888888, distance: 30, size: 1, period: 88, description: "Mercure est la planète la plus proche du Soleil.", moons: [] },
+        { name: "Vénus", color: 0xffaa00, distance: 40, size: 2, period: 225, description: "Vénus est la deuxième planète du système solaire.", moons: [] },
+        { name: "Terre", color: 0x0000ff, distance: 50, size: 2.5, period: 365, description: "La Terre est notre planète, la seule avec de la vie connue.", moons: [{ name: "Lune", size: 0.7, distance: 3, period: 27 }] },
+        { name: "Mars", color: 0xff0000, distance: 60, size: 1.5, period: 687, description: "Mars est souvent appelée la planète rouge.", moons: [{ name: "Phobos", size: 0.3, distance: 2, period: 0.3 }, { name: "Deimos", size: 0.2, distance: 4, period: 1.3 }] },
+        { name: "Jupiter", color: 0xff8800, distance: 80, size: 8, period: 4333, description: "Jupiter est la plus grande planète du système solaire.", moons: [{ name: "Io", size: 1, distance: 4, period: 1.8 }, { name: "Europa", size: 0.8, distance: 6, period: 3.5 }, { name: "Ganymède", size: 1.2, distance: 8, period: 7.1 }, { name: "Callisto", size: 1.1, distance: 10, period: 16.7 }] },
+        { name: "Saturne", color: 0xffcc00, distance: 100, size: 7, period: 10759, description: "Saturne est célèbre pour ses anneaux impressionnants.", moons: [{ name: "Titan", size: 1, distance: 5, period: 16 }] },
+        { name: "Uranus", color: 0x00ccff, distance: 120, size: 5, period: 30687, description: "Uranus a une rotation unique, inclinée sur le côté.", moons: [{ name: "Titania", size: 0.6, distance: 3, period: 8.7 }, { name: "Oberon", size: 0.6, distance: 3.6, period: 13.5 }] },
+        { name: "Neptune", color: 0x0000cc, distance: 140, size: 5, period: 60190, description: "Neptune est la planète la plus éloignée du Soleil.", moons: [{ name: "Triton", size: 0.8, distance: 3, period: 5.9 }] },
+    ];
+
+    const celestialBodies = [];
+    planetData.forEach(data => {
+        // Création de la planète
+        const planetGeometry = new THREE.SphereGeometry(data.size, 32, 32);
+        const planetMaterial = new THREE.MeshStandardMaterial({ color: data.color });
+        const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+        planet.userData = { distance: data.distance, period: data.period, angle: 0, name: data.name, description: data.description };
+        celestialBodies.push(planet);
+        scene.add(planet);
+
+        // Création des anneaux de Saturne
+        if (data.name === "Saturne") {
+            const ringGeometry = new THREE.RingGeometry(10, 14, 64);
+            const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.rotation.x = Math.PI / 2;
+            planet.add(ring);
+        }
+
+        // Création des lunes
+        if (data.moons.length > 0) {
+            data.moons.forEach(moonData => {
+                const moonGeometry = new THREE.SphereGeometry(moonData.size, 32, 32);
+                const moonMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.userData = { distance: moonData.distance, period: moonData.period, angle: 0 };
+                planet.add(moon);
+                if (!planet.userData.moons) {
+                    planet.userData.moons = [];
+                }
+                planet.userData.moons.push(moon);
+            });
+        }
+    });
+
+    // Ajout d'un fond étoilé
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff });
+    const starVertices = [];
+    for (let i = 0; i < 10000; i++) {
+        const x = THREE.MathUtils.randFloatSpread(2000);
+        const y = THREE.MathUtils.randFloatSpread(2000);
+        const z = THREE.MathUtils.randFloatSpread(2000);
+        starVertices.push(x, y, z);
+    }
+    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+
+    celestialBodies.push(sun); // Ajouter le Soleil aux objets cliquables
+
+    camera.position.z = 300;
+
+    // Redimensionnement de la fenêtre
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Gestion des clics
+    function onMouseClick(event) {
+        event.preventDefault();
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(celestialBodies);
+        if (intersects.length > 0) {
+            selectedPlanet = intersects[0].object;
+            controls.target.copy(selectedPlanet.position);
+            camera.position.set(
+                selectedPlanet.position.x + 20, 
+                selectedPlanet.position.y + 20, 
+                selectedPlanet.position.z + 20
+            );
+            displayInfo(selectedPlanet.userData);
+        }
+    }
+    window.addEventListener('click', onMouseClick, false);
+
+    // Afficher les informations de la planète
+    function displayInfo(data) {
+        const info = document.getElementById('info');
+        document.getElementById('planet-name').textContent = data.name;
+        document.getElementById('planet-description').textContent = data.description;
+        info.style.display = 'block';
+    }
+
+    // Fermer les informations de la planète
+    document.getElementById('close-info').addEventListener('click', () => {
+        document.getElementById('info').style.display = 'none';
+    });
+
+    // Animation
+    function animate() {
+        requestAnimationFrame(animate);
+        const time = Date.now() * 0.0000000000001; // Facteur de temps ajusté pour ralentir l'animation
+        celestialBodies.forEach(body => {
+            if (body.userData.period) {
+                const angularSpeed = (2 * Math.PI) / body.userData.period;
+                body.userData.angle += angularSpeed * time;
+                body.position.x = Math.cos(body.userData.angle) * body.userData.distance;
+                body.position.z = Math.sin(body.userData.angle) * body.userData.distance;
+
+                // Animation des lunes
+                if (body.userData.moons) {
+                    body.userData.moons.forEach(moon => {
+                        const moonSpeed = (2 * Math.PI) / moon.userData.period;
+                        moon.userData.angle += moonSpeed * time;
+                        moon.position.x = Math.cos(moon.userData.angle) * moon.userData.distance;
+                        moon.position.z = Math.sin(moon.userData.angle) * moon.userData.distance;
+                    });
+                }
+            }
+        });
+        if (selectedPlanet) {
+            controls.target.copy(selectedPlanet.position);
+        }
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+</script>
+</body>
+</html>

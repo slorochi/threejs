@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Galaxie Simulation</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #controls { position: absolute; top: 10px; left: 10px; z-index: 100; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="blackHoleMass">Masse du Trou Noir: </label>
+        <input type="number" id="blackHoleMass" value="100" step="10"><br>
+        <label for="numStars">Nombre d'étoiles: </label>
+        <input type="number" id="numStars" value="1000" step="100"><br>
+        <button onclick="updateSimulation()">Mettre à jour</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let stars = [];
+        let blackHoleMass = 100;
+        let numStars = 1000;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 100;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            addBlackHole();
+            addStars(numStars);
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function addBlackHole() {
+            let geometry = new THREE.SphereGeometry(5, 32, 32);
+            let material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            let blackHole = new THREE.Mesh(geometry, material);
+            blackHole.position.set(0, 0, 0);
+            scene.add(blackHole);
+        }
+
+        function addStars(num) {
+            for (let i = 0; i < num; i++) {
+                let star = createStar();
+                stars.push(star);
+                scene.add(star);
+            }
+        }
+
+        function createStar() {
+            let geometry = new THREE.SphereGeometry(0.5, 16, 16);
+            let material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            let star = new THREE.Mesh(geometry, material);
+            star.position.set(
+                (Math.random() - 0.5) * 500,
+                (Math.random() - 0.5) * 500,
+                (Math.random() - 0.5) * 500
+            );
+            star.userData.velocity = new THREE.Vector3(0, 0, 0);
+            return star;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateStars();
+
+            renderer.render(scene, camera);
+        }
+
+        function updateStars() {
+            const G = 6.67430e-11;
+            for (let star of stars) {
+                let dx = -star.position.x;
+                let dy = -star.position.y;
+                let dz = -star.position.z;
+                let distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                let force = (G * blackHoleMass) / (distance * distance);
+                let acceleration = force / 1; // assuming unit mass for stars
+                let ax = acceleration * (dx / distance);
+                let ay = acceleration * (dy / distance);
+                let az = acceleration * (dz / distance);
+
+                star.userData.velocity.x += ax;
+                star.userData.velocity.y += ay;
+                star.userData.velocity.z += az;
+
+                star.position.x += star.userData.velocity.x;
+                star.position.y += star.userData.velocity.y;
+                star.position.z += star.userData.velocity.z;
+            }
+        }
+
+        function updateSimulation() {
+            blackHoleMass = parseFloat(document.getElementById('blackHoleMass').value);
+            numStars = parseInt(document.getElementById('numStars').value);
+            
+            // Clear existing stars
+            for (let star of stars) {
+                scene.remove(star);
+            }
+            stars = [];
+
+            addStars(numStars);
+        }
+    </script>
+</body>
+</html>

@@ -60,19 +60,16 @@ const planets = planetsData.map(data => {
     return planet;
 });
 
-// Create satellites for Jupiter
-const jupiterSatellite1 = createSatellite(planets[4], 0.02, 0xffff00, 5, 0.03);
+/* const jupiterSatellite1 = createSatellite(planets[4], 0.02, 0xffff00, 5, 0.03);
 const jupiterSatellite2 = createSatellite(planets[4], 0.015, 0xff00ff, 7, 0.02);
 
-// Create satellites for Saturn
 const saturnSatellite1 = createSatellite(planets[5], 0.015, 0x00ffff, 6, 0.035);
 const saturnSatellite2 = createSatellite(planets[5], 0.01, 0xff0000, 8, 0.025);
 
-// Create satellites for Earth
 const earthSatellite1 = createSatellite(planets[2], 0.005, 0x00ff00, 3, 0.05);
 const earthSatellite2 = createSatellite(planets[2], 0.004, 0x0000ff, 4, 0.04);
 
-
+ */
 
 const distantStars = createStars(20000);
 scene.add(distantStars);
@@ -100,6 +97,12 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 
 // Lights
+
+// Ajout d'une lumière ponctuelle pour simuler la lumière du Soleil
+const pointLight = new THREE.PointLight(0xffffff, 2, 3000);
+pointLight.position.set(0, 0, 0);
+scene.add(pointLight);
+
 const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
 scene.add(ambientLight);
 
